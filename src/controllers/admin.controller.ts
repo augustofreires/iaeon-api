@@ -362,6 +362,52 @@ export const removeBotFromPlan = async (req: AuthRequest, res: Response): Promis
 
 // ============= BOTS =============
 
+// Lista dos XMLs disponíveis no projeto frontend
+const AVAILABLE_XML_FILES = [
+    '1 tick DIgit Over 2.xml',
+    'Defender_Digits Auto Bot.xml',
+    'Digit Over 3.xml',
+    'Entry_Touch_BBot.xml',
+    'Exponential Strategy Bot 2.0.xml',
+    'Free Digit Socail Bot.xml',
+    'HARAMI Binary-Bot.xml',
+    'HL BearKing premium Bot.xml',
+    'HL HAMMER B-BOT 1.0.xml',
+    'Higher-Lower Trend-Challenger BinaryBot .xml',
+    'House of Rise_Fall Auto_Bots.xml',
+    'Insync_Equals BinaryBot.xml',
+    'LastDigit1-Strategy-Bot.xml',
+    'Leo_Even_Odd.xml',
+    'Mavic-Air-RF Vix Bot.xml',
+    'One Touch Tetris B-Bot.xml',
+    'RF-Compressor Signal Bot V1.0.1.xml',
+    'RF-MARBLE B-BOT.xml',
+    'RF_Market-Monitor.xml',
+    'SENSEI-RF-BINARYBOT.xml',
+    'SHASH DIGITS V- 4-20.xml',
+    'Shark_Digits.xml',
+    'Sonic Digits BinaryBot.xml',
+    'Stoch and RSI Bot.xml',
+    'Super Digit Differ Bot.xml',
+    'Tick-Pip Rf.xml',
+    'Unicorn Only Up-Down BinaryBot.xml',
+    'Up-Down Volt Binary Bot.xml',
+    'binary-bot Premium Rise_Fall .xml',
+    'bot.xml',
+];
+
+export const getXmlFiles = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        res.json({
+            files: AVAILABLE_XML_FILES,
+            total: AVAILABLE_XML_FILES.length
+        });
+    } catch (error) {
+        console.error('Error listing XML files:', error);
+        res.status(500).json({ error: 'Erro ao listar arquivos XML' });
+    }
+};
+
 export const listBots = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const bots = await prisma.bot.findMany({
@@ -384,7 +430,7 @@ export const listBots = async (req: AuthRequest, res: Response): Promise<void> =
 
 export const createBot = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const { name, description, xml_filename, category } = req.body;
+        const { name, description, xml_filename, category, status } = req.body;
 
         if (!name || !xml_filename) {
             res.status(400).json({ error: 'Nome e xml_filename são obrigatórios' });
@@ -396,7 +442,8 @@ export const createBot = async (req: AuthRequest, res: Response): Promise<void> 
                 name,
                 description,
                 xml_filename,
-                category
+                category,
+                ...(status && { status })
             }
         });
 
@@ -410,7 +457,7 @@ export const createBot = async (req: AuthRequest, res: Response): Promise<void> 
 export const updateBot = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const id = req.params.id as string;
-        const { name, description, xml_filename, category } = req.body;
+        const { name, description, xml_filename, category, status } = req.body;
 
         const bot = await prisma.bot.update({
             where: { id },
@@ -418,7 +465,8 @@ export const updateBot = async (req: AuthRequest, res: Response): Promise<void> 
                 ...(name && { name }),
                 ...(description !== undefined && { description }),
                 ...(xml_filename && { xml_filename }),
-                ...(category && { category })
+                ...(category && { category }),
+                ...(status && { status })
             }
         });
 

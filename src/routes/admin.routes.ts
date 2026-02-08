@@ -24,6 +24,7 @@ router.post('/plans/:id/bots', adminOnly, adminController.addBotToPlan);
 router.delete('/plans/:id/bots/:botId', adminOnly, adminController.removeBotFromPlan);
 
 // ============= BOTS =============
+router.get('/xml-files', adminOnly, adminController.getXmlFiles);
 router.get('/bots', adminOnly, adminController.listBots);
 router.post('/bots', adminOnly, adminController.createBot);
 router.put('/bots/:id', adminOnly, adminController.updateBot);
