@@ -5,6 +5,9 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
+import webhookRoutes from './routes/webhook.routes';
+import publicRoutes from './routes/public.routes';
+import userRoutes from './routes/user.routes';
 
 dotenv.config();
 
@@ -30,10 +33,20 @@ app.use('/api/auth', authRoutes);
 // Admin routes
 app.use('/api/admin', adminRoutes);
 
+// Webhook routes (public, no auth)
+app.use('/api/webhooks', webhookRoutes);
+
+// Public routes (no auth)
+app.use('/api', publicRoutes);
+
+// User routes (requires auth)
+app.use('/api/user', userRoutes);
+
 app.listen(PORT, () => {
     console.log(`[IAEON API] Server running on port ${PORT}`);
     console.log(`[IAEON API] Auth endpoints available at /api/auth/*`);
     console.log(`[IAEON API] Admin endpoints available at /api/admin/*`);
+    console.log(`[IAEON API] Webhook endpoints available at /api/webhooks/*`);
 });
 
 export default app;
