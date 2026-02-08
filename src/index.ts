@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
+import adminRoutes from './routes/admin.routes';
 
 dotenv.config();
 
@@ -26,9 +27,13 @@ app.get('/api/health', (req, res) => {
 // Auth routes
 app.use('/api/auth', authRoutes);
 
+// Admin routes
+app.use('/api/admin', adminRoutes);
+
 app.listen(PORT, () => {
     console.log(`[IAEON API] Server running on port ${PORT}`);
     console.log(`[IAEON API] Auth endpoints available at /api/auth/*`);
+    console.log(`[IAEON API] Admin endpoints available at /api/admin/*`);
 });
 
 export default app;
