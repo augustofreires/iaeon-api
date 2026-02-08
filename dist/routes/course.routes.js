@@ -35,14 +35,19 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
-const userController = __importStar(require("../controllers/user.controller"));
+const courseController = __importStar(require("../controllers/course.controller"));
 const router = (0, express_1.Router)();
-// Todas as rotas de usuário requerem autenticação
-router.use(auth_1.verifyToken);
-// Buscar bots do usuário baseado no plano
-router.get('/bots', userController.getUserBots);
-// Buscar subscription ativa do usuário
-router.get('/subscription', userController.getUserSubscription);
-// Atualizar perfil (nome e/ou senha)
-router.put('/profile', userController.updateProfile);
+// ========== ROTAS PÚBLICAS ==========
+// Listar cursos (público - não requer auth)
+router.get('/courses', courseController.listCourses);
+// ========== ROTAS ADMIN ==========
+// Módulos
+router.get('/admin/courses/modules', auth_1.verifyToken, auth_1.requireAdmin, courseController.listModules);
+router.post('/admin/courses/modules', auth_1.verifyToken, auth_1.requireAdmin, courseController.createModule);
+router.put('/admin/courses/modules/:id', auth_1.verifyToken, auth_1.requireAdmin, courseController.updateModule);
+router.delete('/admin/courses/modules/:id', auth_1.verifyToken, auth_1.requireAdmin, courseController.deleteModule);
+// Lições
+router.post('/admin/courses/lessons', auth_1.verifyToken, auth_1.requireAdmin, courseController.createLesson);
+router.put('/admin/courses/lessons/:id', auth_1.verifyToken, auth_1.requireAdmin, courseController.updateLesson);
+router.delete('/admin/courses/lessons/:id', auth_1.verifyToken, auth_1.requireAdmin, courseController.deleteLesson);
 exports.default = router;

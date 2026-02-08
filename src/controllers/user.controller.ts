@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import { AuthRequest } from '../middleware/auth';
 
 const prisma = new PrismaClient();
@@ -127,5 +128,129 @@ export const getUserBots = async (req: AuthRequest, res: Response): Promise<void
     } catch (error) {
         console.error('Error getting user bots:', error);
         res.status(500).json({ error: 'Erro ao buscar bots do usuário' });
+    }
+};
+
+/**
+ * Retorna a subscription ativa do usuário
+ */
+export const getUserSubscription = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Não autenticado' });
+            return;
+        }
+
+        const now = new Date();
+        const activeSubscription = await prisma.subscription.findFirst({
+            where: {
+                user_id: userId,
+                status: 'ACTIVE',
+                OR: [
+                    { expires_at: null },
+                    { expires_at: { gt: now } }
+                ]
+            },
+            include: {
+                plan: {
+                    select: {
+                        id: true,
+                        name: true,
+                        price: true,
+                        duration_days: true
+                    }
+                }
+            }
+        });
+
+        if (!activeSubscription) {
+            res.json({ subscription: null });
+            return;
+        }
+
+        res.json({ subscription: activeSubscription });
+    } catch (error) {
+        console.error('Error getting user subscription:', error);
+        res.status(500).json({ error: 'Erro ao buscar subscription' });
+    }
+};
+
+/**
+ * Atualiza perfil do usuário (nome e/ou senha)
+ */
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Não autenticado' });
+            return;
+        }
+
+        const { name, current_password, new_password } = req.body;
+
+        const updateData: any = {};
+
+        // Atualizar nome
+        if (name) {
+            updateData.name = name;
+        }
+
+        // Atualizar senha
+        if (new_password) {
+            if (!current_password) {
+                res.status(400).json({ error: 'Senha atual é obrigatória para alterar a senha' });
+                return;
+            }
+
+            // Verificar senha atual
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { password_hash: true }
+            });
+
+            if (!user || !user.password_hash) {
+                res.status(404).json({ error: 'Usuário não encontrado' });
+                return;
+            }
+
+            const isValidPassword = await bcrypt.compare(current_password, user.password_hash);
+
+            if (!isValidPassword) {
+                res.status(401).json({ error: 'Senha atual incorreta' });
+                return;
+            }
+
+            // Hash nova senha
+            const passwordHash = await bcrypt.hash(new_password, 12);
+            updateData.password_hash = passwordHash;
+        }
+
+        // Se não há nada para atualizar
+        if (Object.keys(updateData).length === 0) {
+            res.status(400).json({ error: 'Nenhum dado para atualizar' });
+            return;
+        }
+
+        // Atualizar usuário
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                status: true,
+                created_at: true
+            }
+        });
+
+        res.json({ message: 'Perfil atualizado com sucesso', user: updatedUser });
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        res.status(500).json({ error: 'Erro ao atualizar perfil' });
     }
 };

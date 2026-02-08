@@ -192,3 +192,20 @@ export const verifyForNginx = async (
         res.status(401).send();
     }
 };
+
+/**
+ * Middleware para verificar se usuário é ADMIN ou MASTER
+ */
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+        res.status(401).json({ error: 'Não autenticado' });
+        return;
+    }
+
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'MASTER') {
+        res.status(403).json({ error: 'Acesso restrito a administradores' });
+        return;
+    }
+
+    next();
+};

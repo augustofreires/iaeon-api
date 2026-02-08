@@ -13,6 +13,7 @@ const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const webhook_routes_1 = __importDefault(require("./routes/webhook.routes"));
 const public_routes_1 = __importDefault(require("./routes/public.routes"));
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
+const course_routes_1 = __importDefault(require("./routes/course.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +38,8 @@ app.use('/api/webhooks', webhook_routes_1.default);
 app.use('/api', public_routes_1.default);
 // User routes (requires auth)
 app.use('/api/user', user_routes_1.default);
+// Course routes (public + admin)
+app.use('/api', course_routes_1.default);
 app.listen(PORT, () => {
     console.log(`[IAEON API] Server running on port ${PORT}`);
     console.log(`[IAEON API] Auth endpoints available at /api/auth/*`);

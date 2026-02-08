@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyForNginx = exports.requireActivePlan = exports.requireRole = exports.verifyToken = void 0;
+exports.requireAdmin = exports.verifyForNginx = exports.requireActivePlan = exports.requireRole = exports.verifyToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
@@ -159,3 +159,18 @@ const verifyForNginx = async (req, res) => {
     }
 };
 exports.verifyForNginx = verifyForNginx;
+/**
+ * Middleware para verificar se usuário é ADMIN ou MASTER
+ */
+const requireAdmin = (req, res, next) => {
+    if (!req.user) {
+        res.status(401).json({ error: 'Não autenticado' });
+        return;
+    }
+    if (req.user.role !== 'ADMIN' && req.user.role !== 'MASTER') {
+        res.status(403).json({ error: 'Acesso restrito a administradores' });
+        return;
+    }
+    next();
+};
+exports.requireAdmin = requireAdmin;

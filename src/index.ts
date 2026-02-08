@@ -8,6 +8,7 @@ import adminRoutes from './routes/admin.routes';
 import webhookRoutes from './routes/webhook.routes';
 import publicRoutes from './routes/public.routes';
 import userRoutes from './routes/user.routes';
+import courseRoutes from './routes/course.routes';
 
 dotenv.config();
 
@@ -41,6 +42,9 @@ app.use('/api', publicRoutes);
 
 // User routes (requires auth)
 app.use('/api/user', userRoutes);
+
+// Course routes (public + admin)
+app.use('/api', courseRoutes);
 
 app.listen(PORT, () => {
     console.log(`[IAEON API] Server running on port ${PORT}`);
