@@ -7,6 +7,9 @@ const router = Router();
 // Todas as rotas de usuário requerem autenticação
 router.use(verifyToken);
 
+// Buscar dados do dashboard
+router.get('/dashboard', userController.getDashboard);
+
 // Buscar bots do usuário baseado no plano
 router.get('/bots', userController.getUserBots);
 

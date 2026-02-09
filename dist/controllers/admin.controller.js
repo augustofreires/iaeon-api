@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
+exports.updateBanners = exports.getBannersAdmin = exports.updateUsefulLinks = exports.getUsefulLinksAdmin = exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 // ============= USUÁRIOS =============
@@ -605,3 +605,121 @@ const getMetrics = async (req, res) => {
     }
 };
 exports.getMetrics = getMetrics;
+// ============= LINKS ÚTEIS =============
+const getUsefulLinksAdmin = async (req, res) => {
+    try {
+        const setting = await prisma.setting.findUnique({
+            where: { key: 'useful_links' }
+        });
+        if (!setting || !setting.value) {
+            res.json([]);
+            return;
+        }
+        try {
+            const links = JSON.parse(setting.value);
+            res.json(links);
+        }
+        catch (parseError) {
+            console.error('Error parsing useful_links JSON:', parseError);
+            res.json([]);
+        }
+    }
+    catch (error) {
+        console.error('Error getting useful links:', error);
+        res.status(500).json({ error: 'Erro ao buscar links úteis' });
+    }
+};
+exports.getUsefulLinksAdmin = getUsefulLinksAdmin;
+const updateUsefulLinks = async (req, res) => {
+    try {
+        const { links } = req.body;
+        if (!Array.isArray(links)) {
+            res.status(400).json({ error: 'Links deve ser um array' });
+            return;
+        }
+        // Validar estrutura dos links
+        for (const link of links) {
+            if (!link.label || !link.url || !link.icon) {
+                res.status(400).json({ error: 'Cada link deve ter label, url e icon' });
+                return;
+            }
+        }
+        const linksJson = JSON.stringify(links);
+        // Tentar atualizar ou criar
+        const setting = await prisma.setting.upsert({
+            where: { key: 'useful_links' },
+            update: { value: linksJson },
+            create: {
+                key: 'useful_links',
+                value: linksJson
+            }
+        });
+        res.json({ message: 'Links atualizados com sucesso', setting });
+    }
+    catch (error) {
+        console.error('Error updating useful links:', error);
+        res.status(500).json({ error: 'Erro ao atualizar links úteis' });
+    }
+};
+exports.updateUsefulLinks = updateUsefulLinks;
+// ============= BANNERS =============
+const getBannersAdmin = async (req, res) => {
+    try {
+        const setting = await prisma.setting.findUnique({
+            where: { key: 'dashboard_banners' }
+        });
+        if (!setting || !setting.value) {
+            res.json([]);
+            return;
+        }
+        try {
+            const banners = JSON.parse(setting.value);
+            res.json(banners);
+        }
+        catch (parseError) {
+            console.error('Error parsing dashboard_banners JSON:', parseError);
+            res.json([]);
+        }
+    }
+    catch (error) {
+        console.error('Error getting banners:', error);
+        res.status(500).json({ error: 'Erro ao buscar banners' });
+    }
+};
+exports.getBannersAdmin = getBannersAdmin;
+const updateBanners = async (req, res) => {
+    try {
+        const { banners } = req.body;
+        if (!Array.isArray(banners)) {
+            res.status(400).json({ error: 'Banners deve ser um array' });
+            return;
+        }
+        // Validar estrutura dos banners
+        for (const banner of banners) {
+            if (!banner.id || banner.order === undefined || banner.active === undefined) {
+                res.status(400).json({ error: 'Cada banner deve ter id, order e active' });
+                return;
+            }
+            if (!banner.link) {
+                res.status(400).json({ error: 'Cada banner deve ter um link' });
+                return;
+            }
+        }
+        const bannersJson = JSON.stringify(banners);
+        // Tentar atualizar ou criar
+        const setting = await prisma.setting.upsert({
+            where: { key: 'dashboard_banners' },
+            update: { value: bannersJson },
+            create: {
+                key: 'dashboard_banners',
+                value: bannersJson
+            }
+        });
+        res.json({ message: 'Banners atualizados com sucesso', setting });
+    }
+    catch (error) {
+        console.error('Error updating banners:', error);
+        res.status(500).json({ error: 'Erro ao atualizar banners' });
+    }
+};
+exports.updateBanners = updateBanners;

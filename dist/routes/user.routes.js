@@ -39,6 +39,8 @@ const userController = __importStar(require("../controllers/user.controller"));
 const router = (0, express_1.Router)();
 // Todas as rotas de usuário requerem autenticação
 router.use(auth_1.verifyToken);
+// Buscar dados do dashboard
+router.get('/dashboard', userController.getDashboard);
 // Buscar bots do usuário baseado no plano
 router.get('/bots', userController.getUserBots);
 // Buscar subscription ativa do usuário

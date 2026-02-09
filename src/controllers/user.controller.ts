@@ -178,6 +178,144 @@ export const getUserSubscription = async (req: AuthRequest, res: Response): Prom
 };
 
 /**
+ * Retorna dados do dashboard do usuário
+ */
+export const getDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Não autenticado' });
+            return;
+        }
+
+        // Buscar dados do usuário
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                status: true
+            }
+        });
+
+        if (!user) {
+            res.status(404).json({ error: 'Usuário não encontrado' });
+            return;
+        }
+
+        // Buscar subscription ativa
+        const now = new Date();
+        const activeSubscription = await prisma.subscription.findFirst({
+            where: {
+                user_id: userId,
+                status: 'ACTIVE',
+                OR: [
+                    { expires_at: null },
+                    { expires_at: { gt: now } }
+                ]
+            },
+            include: {
+                plan: {
+                    select: {
+                        id: true,
+                        name: true,
+                        price: true,
+                        duration_days: true
+                    }
+                }
+            }
+        });
+
+        let subscription = null;
+        if (activeSubscription) {
+            let daysRemaining = null;
+            if (activeSubscription.expires_at) {
+                const diffTime = activeSubscription.expires_at.getTime() - now.getTime();
+                daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            }
+
+            subscription = {
+                plan_name: activeSubscription.plan.name,
+                status: activeSubscription.status,
+                expires_at: activeSubscription.expires_at,
+                days_remaining: daysRemaining
+            };
+        }
+
+        // Contar bots disponíveis
+        let totalBotsAvailable = 0;
+        let totalBotsFree = 0;
+        let totalBotsPaid = 0;
+
+        // Se é MASTER ou ADMIN, tem acesso a todos os bots
+        if (user.role === 'MASTER' || user.role === 'ADMIN') {
+            const allBots = await prisma.bot.findMany({
+                where: { status: 'ACTIVE' },
+                select: { category: true }
+            });
+
+            totalBotsAvailable = allBots.length;
+            totalBotsFree = allBots.filter(b => b.category === 'FREE').length;
+            totalBotsPaid = allBots.filter(b => b.category !== 'FREE').length;
+        } else {
+            // Contar bots FREE
+            const freeBots = await prisma.bot.findMany({
+                where: {
+                    category: 'FREE',
+                    status: 'ACTIVE'
+                }
+            });
+            totalBotsFree = freeBots.length;
+
+            // Se tem subscription, contar bots do plano
+            if (activeSubscription) {
+                const planBots = await prisma.planBot.findMany({
+                    where: {
+                        plan_id: activeSubscription.plan.id
+                    },
+                    include: {
+                        bot: {
+                            select: {
+                                id: true,
+                                category: true,
+                                status: true
+                            }
+                        }
+                    }
+                });
+
+                const activePlanBots = planBots.filter(pb => pb.bot.status === 'ACTIVE');
+                totalBotsPaid = activePlanBots.length;
+            }
+
+            totalBotsAvailable = totalBotsFree + totalBotsPaid;
+        }
+
+        res.json({
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                status: user.status
+            },
+            subscription,
+            stats: {
+                total_bots_available: totalBotsAvailable,
+                total_bots_free: totalBotsFree,
+                total_bots_paid: totalBotsPaid
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting dashboard:', error);
+        res.status(500).json({ error: 'Erro ao buscar dados do dashboard' });
+    }
+};
+
+/**
  * Atualiza perfil do usuário (nome e/ou senha)
  */
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {

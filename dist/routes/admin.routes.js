@@ -68,4 +68,10 @@ router.get('/settings', adminOnly, adminController.listSettings);
 router.put('/settings', adminOnly, adminController.updateSettings);
 // ============= MÉTRICAS =============
 router.get('/metrics', adminOnly, adminController.getMetrics);
+// ============= LINKS ÚTEIS =============
+router.get('/useful-links', adminOnly, adminController.getUsefulLinksAdmin);
+router.put('/useful-links', adminOnly, adminController.updateUsefulLinks);
+// ============= BANNERS =============
+router.get('/banners', adminOnly, adminController.getBannersAdmin);
+router.put('/banners', adminOnly, adminController.updateBanners);
 exports.default = router;
