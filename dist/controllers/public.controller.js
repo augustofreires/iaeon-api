@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
+exports.getDerivConfig = exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 /**
@@ -95,3 +95,33 @@ const getBanners = async (req, res) => {
     }
 };
 exports.getBanners = getBanners;
+/**
+ * Retorna configurações de afiliado da Deriv
+ */
+const getDerivConfig = async (req, res) => {
+    try {
+        const [affiliateTokenSetting, utmCampaignSetting, signupUrlSetting] = await Promise.all([
+            prisma.setting.findUnique({ where: { key: 'deriv_affiliate_token' } }),
+            prisma.setting.findUnique({ where: { key: 'deriv_utm_campaign' } }),
+            prisma.setting.findUnique({ where: { key: 'deriv_signup_url' } })
+        ]);
+        const app_id = 82349;
+        const affiliate_token = affiliateTokenSetting?.value || '';
+        const utm_campaign = utmCampaignSetting?.value || 'iaeon';
+        const signup_url = signupUrlSetting?.value || 'https://deriv.com';
+        // Montar URL OAuth completa
+        const oauth_url = `https://oauth.deriv.com/oauth2/authorize?app_id=${app_id}${affiliate_token ? `&affiliate_token=${affiliate_token}` : ''}&utm_campaign=${utm_campaign}`;
+        res.json({
+            app_id,
+            affiliate_token,
+            utm_campaign,
+            signup_url,
+            oauth_url
+        });
+    }
+    catch (error) {
+        console.error('Error getting Deriv config:', error);
+        res.status(500).json({ error: 'Erro ao buscar configurações da Deriv' });
+    }
+};
+exports.getDerivConfig = getDerivConfig;
