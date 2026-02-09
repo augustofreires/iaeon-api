@@ -34,21 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const auth_1 = require("../middleware/auth");
-const userController = __importStar(require("../controllers/user.controller"));
-const bancaController = __importStar(require("../controllers/banca.controller"));
+const cotacoesController = __importStar(require("../controllers/cotacoes.controller"));
 const router = (0, express_1.Router)();
-// Todas as rotas de usuário requerem autenticação
-router.use(auth_1.verifyToken);
-// Buscar dados do dashboard
-router.get('/dashboard', userController.getDashboard);
-// Buscar bots do usuário baseado no plano
-router.get('/bots', userController.getUserBots);
-// Buscar subscription ativa do usuário
-router.get('/subscription', userController.getUserSubscription);
-// Atualizar perfil (nome e/ou senha)
-router.put('/profile', userController.updateProfile);
-// Gestor de Banca
-router.get('/banca', bancaController.getBancaData);
-router.put('/banca', bancaController.saveBancaData);
+// Rotas públicas (sem autenticação)
+router.get('/', cotacoesController.getCotacoes);
+router.get('/historico/:par', cotacoesController.getHistorico);
 exports.default = router;
