@@ -32,6 +32,7 @@ const getUserBots = async (req, res) => {
                 where: { status: 'ACTIVE' },
                 select: {
                     id: true,
+                    internal_id: true,
                     name: true,
                     description: true,
                     xml_filename: true,
@@ -61,6 +62,7 @@ const getUserBots = async (req, res) => {
                                 bot: {
                                     select: {
                                         id: true,
+                                        internal_id: true,
                                         name: true,
                                         description: true,
                                         xml_filename: true,
@@ -86,6 +88,7 @@ const getUserBots = async (req, res) => {
             },
             select: {
                 id: true,
+                internal_id: true,
                 name: true,
                 description: true,
                 xml_filename: true,
@@ -106,6 +109,7 @@ const getUserBots = async (req, res) => {
             },
             select: {
                 id: true,
+                internal_id: true,
                 name: true,
                 description: true,
                 xml_filename: true,

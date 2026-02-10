@@ -34,6 +34,7 @@ export const getUserBots = async (req: AuthRequest, res: Response): Promise<void
                 where: { status: 'ACTIVE' },
                 select: {
                     id: true,
+                    internal_id: true,
                     name: true,
                     description: true,
                     xml_filename: true,
@@ -65,6 +66,7 @@ export const getUserBots = async (req: AuthRequest, res: Response): Promise<void
                                 bot: {
                                     select: {
                                         id: true,
+                                        internal_id: true,
                                         name: true,
                                         description: true,
                                         xml_filename: true,
@@ -93,6 +95,7 @@ export const getUserBots = async (req: AuthRequest, res: Response): Promise<void
             },
             select: {
                 id: true,
+                internal_id: true,
                 name: true,
                 description: true,
                 xml_filename: true,
@@ -115,6 +118,7 @@ export const getUserBots = async (req: AuthRequest, res: Response): Promise<void
             },
             select: {
                 id: true,
+                internal_id: true,
                 name: true,
                 description: true,
                 xml_filename: true,

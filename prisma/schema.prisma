@@ -38,6 +38,7 @@ model Plan {
 
 model Bot {
     id            String   @id @default(uuid())
+    internal_id   String?  @unique // ID do INTERNAL_BOTS (ex: 'martingale', 'dalembert')
     name          String
     description   String?
     xml_filename  String
