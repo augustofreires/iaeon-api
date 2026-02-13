@@ -360,6 +360,29 @@ export const removeBotFromPlan = async (req: AuthRequest, res: Response): Promis
     }
 };
 
+export const setDefaultPlan = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id as string;
+
+        // Primeiro: remover is_default de todos os planos
+        await prisma.plan.updateMany({
+            where: { is_default: true },
+            data: { is_default: false }
+        });
+
+        // Depois: setar o plano específico como default
+        const plan = await prisma.plan.update({
+            where: { id },
+            data: { is_default: true }
+        });
+
+        res.json(plan);
+    } catch (error) {
+        console.error('Error setting default plan:', error);
+        res.status(500).json({ error: 'Erro ao definir plano padrão' });
+    }
+};
+
 // ============= BOTS =============
 
 // Lista dos XMLs disponíveis no projeto frontend

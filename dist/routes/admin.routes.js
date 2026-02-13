@@ -50,6 +50,7 @@ router.post('/users/:id/subscription', adminOnly, adminController.createUserSubs
 router.get('/plans', adminOnly, adminController.listPlans);
 router.post('/plans', adminOnly, adminController.createPlan);
 router.put('/plans/:id', adminOnly, adminController.updatePlan);
+router.put('/plans/:id/set-default', adminOnly, adminController.setDefaultPlan);
 router.delete('/plans/:id', adminOnly, adminController.deletePlan);
 router.post('/plans/:id/bots', adminOnly, adminController.addBotToPlan);
 router.delete('/plans/:id/bots/:botId', adminOnly, adminController.removeBotFromPlan);

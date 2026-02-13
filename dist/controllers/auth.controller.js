@@ -95,16 +95,10 @@ const login = async (req, res) => {
 exports.login = login;
 /**
  * POST /api/auth/register
- * Cria nova conta (protegido por query param ref=IAEON2026)
+ * Cria nova conta e atribui plano padrão automaticamente
  */
 const register = async (req, res) => {
     try {
-        const { ref } = req.query;
-        // Verificar referência
-        if (ref !== 'IAEON2026') {
-            res.status(403).json({ error: 'Código de referência inválido' });
-            return;
-        }
         const { email, password, name, language } = req.body;
         // Validações básicas
         if (!email || !password || !name) {
@@ -143,9 +137,41 @@ const register = async (req, res) => {
                 language: true
             }
         });
+        // Buscar plano padrão e criar subscription automática
+        const defaultPlan = await prisma.plan.findFirst({
+            where: {
+                is_default: true,
+                status: 'ACTIVE'
+            }
+        });
+        let subscriptionInfo = null;
+        if (defaultPlan) {
+            // Calcular data de expiração
+            let expiresAt = null;
+            if (defaultPlan.duration_days > 0) {
+                expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + defaultPlan.duration_days);
+            }
+            // Criar subscription
+            const subscription = await prisma.subscription.create({
+                data: {
+                    user_id: user.id,
+                    plan_id: defaultPlan.id,
+                    status: 'ACTIVE',
+                    payment_source: 'MANUAL',
+                    expires_at: expiresAt
+                }
+            });
+            subscriptionInfo = {
+                plan_name: defaultPlan.name,
+                expires_at: expiresAt,
+                duration_days: defaultPlan.duration_days
+            };
+        }
         res.status(201).json({
             message: 'Conta criada com sucesso',
-            user
+            user,
+            subscription: subscriptionInfo
         });
     }
     catch (error) {

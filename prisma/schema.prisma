@@ -28,6 +28,7 @@ model Plan {
     description   String?
     price         Decimal  @db.Decimal(10, 2)
     duration_days Int      // 0 = perpétuo, 30, 90, 365
+    is_default    Boolean  @default(false)
     status        Status   @default(ACTIVE)
     created_at    DateTime @default(now())
     updated_at    DateTime @updatedAt

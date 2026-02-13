@@ -298,6 +298,27 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
             totalBotsAvailable = totalBotsFree + totalBotsPaid;
         }
 
+        // Contar bots do plano Pro (para mostrar no card de upgrade)
+        const proPlan = await prisma.plan.findFirst({
+            where: {
+                name: 'IAeon Pro',
+                status: 'ACTIVE'
+            }
+        });
+
+        let totalBotsProPlan = 0;
+        if (proPlan) {
+            const proPlanBots = await prisma.planBot.findMany({
+                where: {
+                    plan_id: proPlan.id
+                },
+                include: {
+                    bot: true
+                }
+            });
+            totalBotsProPlan = proPlanBots.filter(pb => pb.bot && pb.bot.status === 'ACTIVE').length;
+        }
+
         res.json({
             user: {
                 name: user.name,
@@ -309,7 +330,8 @@ export const getDashboard = async (req: AuthRequest, res: Response): Promise<voi
             stats: {
                 total_bots_available: totalBotsAvailable,
                 total_bots_free: totalBotsFree,
-                total_bots_paid: totalBotsPaid
+                total_bots_paid: totalBotsPaid,
+                total_bots_pro_plan: totalBotsProPlan
             }
         });
 

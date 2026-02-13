@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateBanners = exports.getBannersAdmin = exports.updateUsefulLinks = exports.getUsefulLinksAdmin = exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
+exports.updateBanners = exports.getBannersAdmin = exports.updateUsefulLinks = exports.getUsefulLinksAdmin = exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.setDefaultPlan = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 // ============= USUÁRIOS =============
@@ -331,6 +331,27 @@ const removeBotFromPlan = async (req, res) => {
     }
 };
 exports.removeBotFromPlan = removeBotFromPlan;
+const setDefaultPlan = async (req, res) => {
+    try {
+        const id = req.params.id;
+        // Primeiro: remover is_default de todos os planos
+        await prisma.plan.updateMany({
+            where: { is_default: true },
+            data: { is_default: false }
+        });
+        // Depois: setar o plano específico como default
+        const plan = await prisma.plan.update({
+            where: { id },
+            data: { is_default: true }
+        });
+        res.json(plan);
+    }
+    catch (error) {
+        console.error('Error setting default plan:', error);
+        res.status(500).json({ error: 'Erro ao definir plano padrão' });
+    }
+};
+exports.setDefaultPlan = setDefaultPlan;
 // ============= BOTS =============
 // Lista dos XMLs disponíveis no projeto frontend
 const AVAILABLE_XML_FILES = [
