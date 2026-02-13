@@ -126,3 +126,27 @@ export const getDerivConfig = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ error: 'Erro ao buscar configurações da Deriv' });
     }
 };
+
+/**
+ * Retorna configurações de branding da plataforma (logo, nome, subtítulo, favicon)
+ */
+export const getPlatformConfig = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const [logoUrlSetting, platformNameSetting, platformSubtitleSetting, faviconUrlSetting] = await Promise.all([
+            prisma.setting.findUnique({ where: { key: 'logo_url' } }),
+            prisma.setting.findUnique({ where: { key: 'platform_name' } }),
+            prisma.setting.findUnique({ where: { key: 'platform_subtitle' } }),
+            prisma.setting.findUnique({ where: { key: 'favicon_url' } })
+        ]);
+
+        res.json({
+            logo_url: logoUrlSetting?.value || '',
+            platform_name: platformNameSetting?.value || 'IAEON',
+            platform_subtitle: platformSubtitleSetting?.value || 'Plataforma de Bots de Trading',
+            favicon_url: faviconUrlSetting?.value || ''
+        });
+    } catch (error) {
+        console.error('Error getting platform config:', error);
+        res.status(500).json({ error: 'Erro ao buscar configurações da plataforma' });
+    }
+};

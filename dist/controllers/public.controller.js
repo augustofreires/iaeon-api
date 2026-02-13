@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getDerivConfig = exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
+exports.getPlatformConfig = exports.getDerivConfig = exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 /**
@@ -125,3 +125,27 @@ const getDerivConfig = async (req, res) => {
     }
 };
 exports.getDerivConfig = getDerivConfig;
+/**
+ * Retorna configurações de branding da plataforma (logo, nome, subtítulo, favicon)
+ */
+const getPlatformConfig = async (req, res) => {
+    try {
+        const [logoUrlSetting, platformNameSetting, platformSubtitleSetting, faviconUrlSetting] = await Promise.all([
+            prisma.setting.findUnique({ where: { key: 'logo_url' } }),
+            prisma.setting.findUnique({ where: { key: 'platform_name' } }),
+            prisma.setting.findUnique({ where: { key: 'platform_subtitle' } }),
+            prisma.setting.findUnique({ where: { key: 'favicon_url' } })
+        ]);
+        res.json({
+            logo_url: logoUrlSetting?.value || '',
+            platform_name: platformNameSetting?.value || 'IAEON',
+            platform_subtitle: platformSubtitleSetting?.value || 'Plataforma de Bots de Trading',
+            favicon_url: faviconUrlSetting?.value || ''
+        });
+    }
+    catch (error) {
+        console.error('Error getting platform config:', error);
+        res.status(500).json({ error: 'Erro ao buscar configurações da plataforma' });
+    }
+};
+exports.getPlatformConfig = getPlatformConfig;

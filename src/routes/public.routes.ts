@@ -15,4 +15,7 @@ router.get('/banners', publicController.getBanners);
 // Rota pública para config de afiliado Deriv (sem autenticação)
 router.get('/config/deriv', publicController.getDerivConfig);
 
+// Rota pública para config de branding da plataforma (sem autenticação)
+router.get('/config/platform', publicController.getPlatformConfig);
+
 export default router;

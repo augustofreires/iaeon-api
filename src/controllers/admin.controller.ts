@@ -246,7 +246,7 @@ export const listPlans = async (req: AuthRequest, res: Response): Promise<void> 
 
 export const createPlan = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const { name, description, price, duration_days } = req.body;
+        const { name, description, price, duration_days, checkout_url } = req.body;
 
         if (!name || price === undefined) {
             res.status(400).json({ error: 'Nome e preço são obrigatórios' });
@@ -258,7 +258,8 @@ export const createPlan = async (req: AuthRequest, res: Response): Promise<void>
                 name,
                 description,
                 price: parseFloat(price),
-                ...(duration_days && { duration_days: parseInt(duration_days) })
+                ...(duration_days && { duration_days: parseInt(duration_days) }),
+                ...(checkout_url !== undefined && { checkout_url })
             }
         });
 
@@ -272,7 +273,7 @@ export const createPlan = async (req: AuthRequest, res: Response): Promise<void>
 export const updatePlan = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const id = req.params.id as string;
-        const { name, description, price, duration_days } = req.body;
+        const { name, description, price, duration_days, checkout_url } = req.body;
 
         const plan = await prisma.plan.update({
             where: { id },
@@ -280,7 +281,8 @@ export const updatePlan = async (req: AuthRequest, res: Response): Promise<void>
                 ...(name && { name }),
                 ...(description !== undefined && { description }),
                 ...(price !== undefined && { price: parseFloat(price) }),
-                ...(duration_days !== undefined && { duration_days: duration_days ? parseInt(duration_days) : null })
+                ...(duration_days !== undefined && { duration_days: duration_days ? parseInt(duration_days) : null }),
+                ...(checkout_url !== undefined && { checkout_url })
             }
         });
 
