@@ -13,6 +13,10 @@ const listUsers = async (req, res) => {
         const role = req.query.role;
         const skip = (page - 1) * limit;
         const where = {};
+        // Se o usuário é ADMIN, não mostrar usuários MASTER
+        if (req.user?.role === 'ADMIN') {
+            where.role = { not: 'MASTER' };
+        }
         if (search) {
             where.OR = [
                 { email: { contains: search, mode: 'insensitive' } },
@@ -22,7 +26,12 @@ const listUsers = async (req, res) => {
         if (status) {
             where.status = status;
         }
-        if (role) {
+        if (role && req.user?.role === 'MASTER') {
+            // Apenas MASTER pode filtrar por role específica
+            where.role = role;
+        }
+        else if (role && req.user?.role === 'ADMIN' && role !== 'MASTER') {
+            // ADMIN pode filtrar, mas nunca verá MASTER
             where.role = role;
         }
         const [users, total] = await Promise.all([
@@ -108,6 +117,28 @@ const updateUser = async (req, res) => {
     try {
         const id = req.params.id;
         const { name, email, role, status, language } = req.body;
+        // Buscar o usuário alvo
+        const targetUser = await prisma.user.findUnique({
+            where: { id },
+            select: { role: true }
+        });
+        if (!targetUser) {
+            res.status(404).json({ error: 'Usuário não encontrado' });
+            return;
+        }
+        // Se o usuário logado é ADMIN, aplicar restrições
+        if (req.user?.role === 'ADMIN') {
+            // ADMIN não pode alterar usuários MASTER
+            if (targetUser.role === 'MASTER') {
+                res.status(403).json({ error: 'ADMINs não podem alterar usuários MASTER' });
+                return;
+            }
+            // ADMIN não pode setar role como MASTER
+            if (role === 'MASTER') {
+                res.status(403).json({ error: 'ADMINs não podem promover usuários para MASTER' });
+                return;
+            }
+        }
         const user = await prisma.user.update({
             where: { id },
             data: {
@@ -134,6 +165,20 @@ const updateUserStatus = async (req, res) => {
             res.status(400).json({ error: 'Status inválido' });
             return;
         }
+        // Buscar o usuário alvo
+        const targetUser = await prisma.user.findUnique({
+            where: { id },
+            select: { role: true }
+        });
+        if (!targetUser) {
+            res.status(404).json({ error: 'Usuário não encontrado' });
+            return;
+        }
+        // ADMIN não pode bloquear/alterar status de MASTER
+        if (req.user?.role === 'ADMIN' && targetUser.role === 'MASTER') {
+            res.status(403).json({ error: 'ADMINs não podem alterar status de usuários MASTER' });
+            return;
+        }
         const user = await prisma.user.update({
             where: { id },
             data: { status }
@@ -149,6 +194,20 @@ exports.updateUserStatus = updateUserStatus;
 const deleteUser = async (req, res) => {
     try {
         const id = req.params.id;
+        // Buscar o usuário alvo
+        const targetUser = await prisma.user.findUnique({
+            where: { id },
+            select: { role: true }
+        });
+        if (!targetUser) {
+            res.status(404).json({ error: 'Usuário não encontrado' });
+            return;
+        }
+        // ADMIN não pode deletar MASTER
+        if (req.user?.role === 'ADMIN' && targetUser.role === 'MASTER') {
+            res.status(403).json({ error: 'ADMINs não podem deletar usuários MASTER' });
+            return;
+        }
         await prisma.subscription.deleteMany({
             where: { user_id: id }
         });
