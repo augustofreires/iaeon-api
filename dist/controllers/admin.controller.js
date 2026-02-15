@@ -617,9 +617,13 @@ exports.deleteSubscription = deleteSubscription;
 // ============= CONFIGURAÇÕES =============
 const listSettings = async (req, res) => {
     try {
-        const settings = await prisma.setting.findMany({
+        let settings = await prisma.setting.findMany({
             orderBy: { key: 'asc' }
         });
+        // ADMIN não pode ver settings de markup (exclusivas do MASTER)
+        if (req.user?.role === 'ADMIN') {
+            settings = settings.filter(s => !s.key.startsWith('deriv_markup_'));
+        }
         res.json(settings);
     }
     catch (error) {
@@ -634,6 +638,14 @@ const updateSettings = async (req, res) => {
         if (!Array.isArray(settings)) {
             res.status(400).json({ error: 'Settings deve ser um array' });
             return;
+        }
+        // ADMIN não pode alterar settings de markup
+        if (req.user?.role === 'ADMIN') {
+            const hasMarkupSettings = settings.some(s => s.key.startsWith('deriv_markup_'));
+            if (hasMarkupSettings) {
+                res.status(403).json({ error: 'Você não tem permissão para alterar configurações de markup' });
+                return;
+            }
         }
         const results = await Promise.all(settings.map(async ({ key, value }) => {
             return prisma.setting.upsert({
