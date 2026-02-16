@@ -8,7 +8,8 @@ const client_1 = require("@prisma/client");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const prisma = new client_1.PrismaClient();
 /**
- * Retorna os bots que o usuário tem acesso baseado no plano
+ * Retorna TODOS os bots ACTIVE com campo is_accessible
+ * indicando se o usuário tem acesso baseado no plano
  */
 const getUserBots = async (req, res) => {
     try {
@@ -26,21 +27,26 @@ const getUserBots = async (req, res) => {
             res.status(404).json({ error: 'Usuário não encontrado' });
             return;
         }
-        // Se é MASTER ou ADMIN, retornar TODOS os bots
+        // Buscar TODOS os bots ACTIVE
+        const allBots = await prisma.bot.findMany({
+            where: { status: 'ACTIVE' },
+            select: {
+                id: true,
+                internal_id: true,
+                name: true,
+                description: true,
+                xml_filename: true,
+                category: true
+            },
+            orderBy: { name: 'asc' }
+        });
+        // Se é MASTER ou ADMIN, todos os bots são acessíveis
         if (user.role === 'MASTER' || user.role === 'ADMIN') {
-            const allBots = await prisma.bot.findMany({
-                where: { status: 'ACTIVE' },
-                select: {
-                    id: true,
-                    internal_id: true,
-                    name: true,
-                    description: true,
-                    xml_filename: true,
-                    category: true
-                },
-                orderBy: { name: 'asc' }
-            });
-            res.json(allBots);
+            const botsWithAccess = allBots.map(bot => ({
+                ...bot,
+                is_accessible: true
+            }));
+            res.json(botsWithAccess);
             return;
         }
         // Buscar subscription ativa do usuário
@@ -58,66 +64,33 @@ const getUserBots = async (req, res) => {
                 plan: {
                     include: {
                         plan_bots: {
-                            include: {
-                                bot: {
-                                    select: {
-                                        id: true,
-                                        internal_id: true,
-                                        name: true,
-                                        description: true,
-                                        xml_filename: true,
-                                        category: true
-                                    }
-                                }
+                            select: {
+                                bot_id: true
                             }
                         }
                     }
                 }
             }
         });
-        let botIds = [];
+        // IDs dos bots que o usuário pode acessar
+        let accessibleBotIds = [];
         // Se tem subscription ativa, pegar bots do plano
         if (activeSubscription) {
-            botIds = activeSubscription.plan.plan_bots.map(pb => pb.bot.id);
+            accessibleBotIds = activeSubscription.plan.plan_bots.map(pb => pb.bot_id);
         }
-        // Buscar bots FREE (todos têm acesso)
-        const freeBots = await prisma.bot.findMany({
-            where: {
-                category: 'FREE',
-                status: 'ACTIVE'
-            },
-            select: {
-                id: true,
-                internal_id: true,
-                name: true,
-                description: true,
-                xml_filename: true,
-                category: true
-            }
-        });
-        // Adicionar IDs dos bots FREE
+        // Adicionar bots FREE (todos têm acesso)
+        const freeBots = allBots.filter(bot => bot.category === 'FREE');
         freeBots.forEach(bot => {
-            if (!botIds.includes(bot.id)) {
-                botIds.push(bot.id);
+            if (!accessibleBotIds.includes(bot.id)) {
+                accessibleBotIds.push(bot.id);
             }
         });
-        // Buscar todos os bots que o usuário tem acesso
-        const userBots = await prisma.bot.findMany({
-            where: {
-                id: { in: botIds },
-                status: 'ACTIVE'
-            },
-            select: {
-                id: true,
-                internal_id: true,
-                name: true,
-                description: true,
-                xml_filename: true,
-                category: true
-            },
-            orderBy: { name: 'asc' }
-        });
-        res.json(userBots);
+        // Retornar todos os bots com campo is_accessible
+        const botsWithAccess = allBots.map(bot => ({
+            ...bot,
+            is_accessible: accessibleBotIds.includes(bot.id)
+        }));
+        res.json(botsWithAccess);
     }
     catch (error) {
         console.error('Error getting user bots:', error);
