@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const ACCESS_TOKEN_EXPIRES_IN = '15m'; // 15 minutos
+const ACCESS_TOKEN_EXPIRES_IN = '7d'; // 7 dias
 const REFRESH_TOKEN_EXPIRES_IN = '7d'; // 7 dias
 
 /**
