@@ -109,7 +109,7 @@ exports.deleteModule = deleteModule;
 // ============= ADMIN - LIÇÕES =============
 const createLesson = async (req, res) => {
     try {
-        const { module_id, title, youtube_url, order } = req.body;
+        const { module_id, title, description, youtube_url, order } = req.body;
         if (!module_id || !title || !youtube_url) {
             res.status(400).json({ error: 'Module ID, título e YouTube URL são obrigatórios' });
             return;
@@ -118,6 +118,7 @@ const createLesson = async (req, res) => {
             data: {
                 module_id,
                 title,
+                description: description || null,
                 youtube_url,
                 order: order ? parseInt(order) : 0,
                 status: 'ACTIVE'
@@ -134,11 +135,12 @@ exports.createLesson = createLesson;
 const updateLesson = async (req, res) => {
     try {
         const id = req.params.id;
-        const { title, youtube_url, order, status } = req.body;
+        const { title, description, youtube_url, order, status } = req.body;
         const lesson = await prisma.courseLesson.update({
             where: { id },
             data: {
                 ...(title && { title }),
+                ...(description !== undefined && { description }),
                 ...(youtube_url && { youtube_url }),
                 ...(order !== undefined && { order: parseInt(order) }),
                 ...(status && { status })

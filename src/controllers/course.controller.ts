@@ -118,7 +118,7 @@ export const deleteModule = async (req: AuthRequest, res: Response): Promise<voi
 
 export const createLesson = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const { module_id, title, youtube_url, order } = req.body;
+        const { module_id, title, description, youtube_url, order } = req.body;
 
         if (!module_id || !title || !youtube_url) {
             res.status(400).json({ error: 'Module ID, título e YouTube URL são obrigatórios' });
@@ -129,6 +129,7 @@ export const createLesson = async (req: AuthRequest, res: Response): Promise<voi
             data: {
                 module_id,
                 title,
+                description: description || null,
                 youtube_url,
                 order: order ? parseInt(order) : 0,
                 status: 'ACTIVE'
@@ -145,12 +146,13 @@ export const createLesson = async (req: AuthRequest, res: Response): Promise<voi
 export const updateLesson = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const id = req.params.id as string;
-        const { title, youtube_url, order, status } = req.body;
+        const { title, description, youtube_url, order, status } = req.body;
 
         const lesson = await prisma.courseLesson.update({
             where: { id },
             data: {
                 ...(title && { title }),
+                ...(description !== undefined && { description }),
                 ...(youtube_url && { youtube_url }),
                 ...(order !== undefined && { order: parseInt(order) }),
                 ...(status && { status })
