@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const adminController = __importStar(require("../controllers/admin.controller"));
+const smtpController = __importStar(require("../controllers/smtp.controller"));
 const router = (0, express_1.Router)();
 // Todas as rotas de admin exigem autenticação e role MASTER ou ADMIN
 const adminOnly = [auth_1.verifyToken, (0, auth_1.requireRole)(['MASTER', 'ADMIN'])];
@@ -75,4 +76,9 @@ router.put('/useful-links', adminOnly, adminController.updateUsefulLinks);
 // ============= BANNERS =============
 router.get('/banners', adminOnly, adminController.getBannersAdmin);
 router.put('/banners', adminOnly, adminController.updateBanners);
+// ============= SMTP =============
+const masterOnly = [auth_1.verifyToken, (0, auth_1.requireRole)(['MASTER'])];
+router.get('/smtp', adminOnly, smtpController.getSmtpConfig);
+router.put('/smtp', masterOnly, smtpController.updateSmtpConfig);
+router.post('/smtp/test', masterOnly, smtpController.sendTestEmail);
 exports.default = router;

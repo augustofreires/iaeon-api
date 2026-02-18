@@ -68,4 +68,14 @@ router.post('/logout', authController.logout);
  * Retorna apenas 200 ou 401
  */
 router.get('/verify', auth_1.verifyForNginx);
+/**
+ * POST /api/auth/forgot-password
+ * Envia email com link de redefinição de senha
+ */
+router.post('/forgot-password', authController.forgotPassword);
+/**
+ * POST /api/auth/reset-password
+ * Redefine senha usando token
+ */
+router.post('/reset-password', authController.resetPassword);
 exports.default = router;

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requireRole } from '../middleware/auth';
 import * as adminController from '../controllers/admin.controller';
+import * as smtpController from '../controllers/smtp.controller';
 
 const router = Router();
 
@@ -50,5 +51,11 @@ router.put('/useful-links', adminOnly, adminController.updateUsefulLinks);
 // ============= BANNERS =============
 router.get('/banners', adminOnly, adminController.getBannersAdmin);
 router.put('/banners', adminOnly, adminController.updateBanners);
+
+// ============= SMTP =============
+const masterOnly = [verifyToken, requireRole(['MASTER'])];
+router.get('/smtp', adminOnly, smtpController.getSmtpConfig);
+router.put('/smtp', masterOnly, smtpController.updateSmtpConfig);
+router.post('/smtp/test', masterOnly, smtpController.sendTestEmail);
 
 export default router;

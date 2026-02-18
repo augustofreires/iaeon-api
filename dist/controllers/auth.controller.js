@@ -3,10 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verify = exports.logout = exports.refresh = exports.me = exports.register = exports.login = void 0;
+exports.resetPassword = exports.forgotPassword = exports.verify = exports.logout = exports.refresh = exports.me = exports.register = exports.login = void 0;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const crypto_1 = __importDefault(require("crypto"));
+const email_service_1 = require("../services/email.service");
+const welcome_email_1 = require("../templates/welcome-email");
+const reset_password_email_1 = require("../templates/reset-password-email");
 const prisma = new client_1.PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -168,6 +172,12 @@ const register = async (req, res) => {
                 duration_days: defaultPlan.duration_days
             };
         }
+        // Enviar email de boas-vindas (não bloqueia o registro se falhar)
+        if (subscriptionInfo) {
+            (0, email_service_1.sendEmail)(user.email, 'Bem-vindo à Eon Pro!', (0, welcome_email_1.getWelcomeEmailHtml)(user.name, subscriptionInfo.plan_name)).catch(error => {
+                console.error('[AUTH] Failed to send welcome email:', error);
+            });
+        }
         res.status(201).json({
             message: 'Conta criada com sucesso',
             user,
@@ -303,3 +313,108 @@ const verify = async (req, res) => {
     res.status(200).send();
 };
 exports.verify = verify;
+/**
+ * POST /api/auth/forgot-password
+ * Envia email com link de redefinição de senha
+ */
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ error: 'Email é obrigatório' });
+            return;
+        }
+        // Buscar usuário
+        const user = await prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                status: true
+            }
+        });
+        // SEMPRE retorna mesma mensagem (não revela se email existe)
+        const successMessage = 'Se o email existir no sistema, enviaremos instruções de redefinição de senha';
+        // Se usuário não existe ou está inativo, retornar sucesso mas não fazer nada
+        if (!user || user.status !== 'ACTIVE') {
+            res.json({ message: successMessage });
+            return;
+        }
+        // Gerar token de reset
+        const resetToken = crypto_1.default.randomBytes(32).toString('hex');
+        const resetTokenExpiry = new Date();
+        resetTokenExpiry.setHours(resetTokenExpiry.getHours() + 1); // Expira em 1 hora
+        // Salvar token no banco
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                resetToken,
+                resetTokenExpiry
+            }
+        });
+        // Enviar email (não bloqueia a resposta se falhar)
+        (0, email_service_1.sendEmail)(user.email, 'Eon Pro - Redefinição de Senha', (0, reset_password_email_1.getResetPasswordEmailHtml)(user.name, resetToken)).catch(error => {
+            console.error('[AUTH] Failed to send reset password email:', error);
+        });
+        res.json({ message: successMessage });
+    }
+    catch (error) {
+        console.error('[AUTH] Forgot password error:', error);
+        res.status(500).json({ error: 'Erro ao processar solicitação' });
+    }
+};
+exports.forgotPassword = forgotPassword;
+/**
+ * POST /api/auth/reset-password
+ * Redefine a senha usando o token enviado por email
+ */
+const resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password) {
+            res.status(400).json({ error: 'Token e nova senha são obrigatórios' });
+            return;
+        }
+        if (password.length < 6) {
+            res.status(400).json({ error: 'Senha deve ter no mínimo 6 caracteres' });
+            return;
+        }
+        // Buscar usuário com token válido e não expirado
+        const user = await prisma.user.findFirst({
+            where: {
+                resetToken: token,
+                resetTokenExpiry: {
+                    gte: new Date() // Token não expirado
+                },
+                status: 'ACTIVE'
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true
+            }
+        });
+        if (!user) {
+            res.status(400).json({ error: 'Link inválido ou expirado' });
+            return;
+        }
+        // Criar hash da nova senha
+        const password_hash = await bcryptjs_1.default.hash(password, 12);
+        // Atualizar senha e limpar token
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password_hash,
+                resetToken: null,
+                resetTokenExpiry: null
+            }
+        });
+        res.json({ message: 'Senha alterada com sucesso' });
+    }
+    catch (error) {
+        console.error('[AUTH] Reset password error:', error);
+        res.status(500).json({ error: 'Erro ao redefinir senha' });
+    }
+};
+exports.resetPassword = resetPassword;

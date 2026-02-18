@@ -41,4 +41,16 @@ router.post('/logout', authController.logout);
  */
 router.get('/verify', verifyForNginx);
 
+/**
+ * POST /api/auth/forgot-password
+ * Envia email com link de redefinição de senha
+ */
+router.post('/forgot-password', authController.forgotPassword);
+
+/**
+ * POST /api/auth/reset-password
+ * Redefine senha usando token
+ */
+router.post('/reset-password', authController.resetPassword);
+
 export default router;

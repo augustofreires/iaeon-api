@@ -8,16 +8,18 @@ datasource db {
 }
 
 model User {
-    id            String   @id @default(uuid())
-    email         String   @unique
-    password_hash String
-    name          String
-    role          Role     @default(USER)
-    status        Status   @default(ACTIVE)
-    language      String   @default("pt-br")
-    created_at    DateTime @default(now())
-    updated_at    DateTime @updatedAt
-    last_login    DateTime?
+    id               String    @id @default(uuid())
+    email            String    @unique
+    password_hash    String
+    name             String
+    role             Role      @default(USER)
+    status           Status    @default(ACTIVE)
+    language         String    @default("pt-br")
+    created_at       DateTime  @default(now())
+    updated_at       DateTime  @updatedAt
+    last_login       DateTime?
+    resetToken       String?
+    resetTokenExpiry DateTime?
 
     subscriptions Subscription[]
 }
@@ -118,6 +120,18 @@ model Setting {
     id    String @id @default(uuid())
     key   String @unique
     value String
+}
+
+model SmtpConfig {
+    id         String   @id @default(uuid())
+    host       String   @default("")
+    port       Int      @default(587)
+    user       String   @default("")
+    password   String   @default("")
+    from_name  String   @default("IAEON")
+    from_email String   @default("")
+    secure     Boolean  @default(false)
+    updated_at DateTime @updatedAt
 }
 
 enum Role {
