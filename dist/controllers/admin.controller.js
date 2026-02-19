@@ -208,9 +208,7 @@ const deleteUser = async (req, res) => {
             res.status(403).json({ error: 'ADMINs não podem deletar usuários MASTER' });
             return;
         }
-        await prisma.subscription.deleteMany({
-            where: { user_id: id }
-        });
+        // Deletar usuário (CASCADE vai deletar subscriptions automaticamente)
         await prisma.user.delete({
             where: { id }
         });
@@ -617,13 +615,11 @@ exports.deleteSubscription = deleteSubscription;
 // ============= CONFIGURAÇÕES =============
 const listSettings = async (req, res) => {
     try {
-        let settings = await prisma.setting.findMany({
+        // ADMIN pode VER todas as settings (incluindo markup para consultar API)
+        // mas não pode ALTERAR settings de markup (verificado no updateSettings)
+        const settings = await prisma.setting.findMany({
             orderBy: { key: 'asc' }
         });
-        // ADMIN não pode ver settings de markup (exclusivas do MASTER)
-        if (req.user?.role === 'ADMIN') {
-            settings = settings.filter(s => !s.key.startsWith('deriv_markup_'));
-        }
         res.json(settings);
     }
     catch (error) {

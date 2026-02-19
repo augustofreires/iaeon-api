@@ -232,10 +232,7 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
             return;
         }
 
-        await prisma.subscription.deleteMany({
-            where: { user_id: id }
-        });
-
+        // Deletar usuário (CASCADE vai deletar subscriptions automaticamente)
         await prisma.user.delete({
             where: { id }
         });
@@ -673,14 +670,11 @@ export const deleteSubscription = async (req: AuthRequest, res: Response): Promi
 
 export const listSettings = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        let settings = await prisma.setting.findMany({
+        // ADMIN pode VER todas as settings (incluindo markup para consultar API)
+        // mas não pode ALTERAR settings de markup (verificado no updateSettings)
+        const settings = await prisma.setting.findMany({
             orderBy: { key: 'asc' }
         });
-
-        // ADMIN não pode ver settings de markup (exclusivas do MASTER)
-        if (req.user?.role === 'ADMIN') {
-            settings = settings.filter(s => !s.key.startsWith('deriv_markup_'));
-        }
 
         res.json(settings);
     } catch (error) {
