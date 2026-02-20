@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.saveBancaData = exports.getBancaData = void 0;
 const client_1 = require("@prisma/client");
+const json_1 = require("../utils/json");
 const prisma = new client_1.PrismaClient();
 const getBancaData = async (req, res) => {
     try {
@@ -14,17 +15,16 @@ const getBancaData = async (req, res) => {
         const setting = await prisma.setting.findUnique({
             where: { key },
         });
+        const defaultData = {
+            meta_diaria: 5,
+            max_perda: 9,
+            dias: Array(30).fill(null).map((_, i) => ({ dia: i + 1 })),
+        };
         if (!setting || !setting.value) {
-            // Retornar dados padrão
-            const defaultData = {
-                meta_diaria: 5,
-                max_perda: 9,
-                dias: Array(30).fill(null).map((_, i) => ({ dia: i + 1 })),
-            };
             res.json(defaultData);
             return;
         }
-        const data = JSON.parse(setting.value);
+        const data = (0, json_1.safeJsonParse)(setting.value, defaultData);
         res.json(data);
     }
     catch (error) {

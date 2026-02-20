@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { AuthRequest } from '../middleware/auth';
+import { safeJsonParse } from '../utils/json';
 
 const prisma = new PrismaClient();
 
@@ -776,13 +777,8 @@ export const getUsefulLinksAdmin = async (req: AuthRequest, res: Response): Prom
             return;
         }
 
-        try {
-            const links = JSON.parse(setting.value);
-            res.json(links);
-        } catch (parseError) {
-            console.error('Error parsing useful_links JSON:', parseError);
-            res.json([]);
-        }
+        const links = safeJsonParse(setting.value, []);
+        res.json(links);
     } catch (error) {
         console.error('Error getting useful links:', error);
         res.status(500).json({ error: 'Erro ao buscar links úteis' });
@@ -838,13 +834,8 @@ export const getBannersAdmin = async (req: AuthRequest, res: Response): Promise<
             return;
         }
 
-        try {
-            const banners = JSON.parse(setting.value);
-            res.json(banners);
-        } catch (parseError) {
-            console.error('Error parsing dashboard_banners JSON:', parseError);
-            res.json([]);
-        }
+        const banners = safeJsonParse(setting.value, []);
+        res.json(banners);
     } catch (error) {
         console.error('Error getting banners:', error);
         res.status(500).json({ error: 'Erro ao buscar banners' });

@@ -58,7 +58,7 @@ const updateSmtpConfig = async (req, res) => {
         const { host, port, user, password, from_name, from_email, secure } = req.body;
         const config = await emailService.updateSmtpConfig({
             host,
-            port: port ? parseInt(port) : undefined,
+            port: port ? parseInt(port, 10) : undefined,
             user,
             password,
             from_name,

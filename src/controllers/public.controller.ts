@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { safeJsonParse } from '../utils/json';
 
 const prisma = new PrismaClient();
 
@@ -51,13 +52,8 @@ export const getUsefulLinks = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        try {
-            const links = JSON.parse(setting.value);
-            res.json(links);
-        } catch (parseError) {
-            console.error('Error parsing useful_links JSON:', parseError);
-            res.json([]);
-        }
+        const links = safeJsonParse(setting.value, []);
+        res.json(links);
     } catch (error) {
         console.error('Error getting useful links:', error);
         res.status(500).json({ error: 'Erro ao buscar links úteis' });
@@ -78,17 +74,12 @@ export const getBanners = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        try {
-            const banners = JSON.parse(setting.value);
-            // Filtrar apenas banners ativos e ordenar
-            const activeBanners = banners
-                .filter((b: any) => b.active)
-                .sort((a: any, b: any) => a.order - b.order);
-            res.json(activeBanners);
-        } catch (parseError) {
-            console.error('Error parsing dashboard_banners JSON:', parseError);
-            res.json([]);
-        }
+        const banners = safeJsonParse(setting.value, []);
+        // Filtrar apenas banners ativos e ordenar
+        const activeBanners = banners
+            .filter((b: any) => b.active)
+            .sort((a: any, b: any) => a.order - b.order);
+        res.json(activeBanners);
     } catch (error) {
         console.error('Error getting banners:', error);
         res.status(500).json({ error: 'Erro ao buscar banners' });

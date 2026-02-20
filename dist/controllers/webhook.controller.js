@@ -82,8 +82,12 @@ async function getPlanByProduct(productCode, productName) {
 const handlePerfectPayWebhook = async (req, res) => {
     try {
         const payload = req.body;
-        // Log do payload completo
-        console.log('[PerfectPay Webhook] Received:', JSON.stringify(payload, null, 2));
+        // Log do payload (sem token por segurança)
+        const { token, ...safePayload } = payload;
+        console.log('[PerfectPay Webhook] Received:', JSON.stringify({
+            ...safePayload,
+            customer: { email: safePayload.customer?.email }
+        }, null, 2));
         // Validar token de segurança (vem no body como "token")
         const webhookToken = payload.token;
         const setting = await prisma.setting.findUnique({
@@ -91,7 +95,7 @@ const handlePerfectPayWebhook = async (req, res) => {
         });
         const expectedToken = setting?.value;
         if (expectedToken && webhookToken !== expectedToken) {
-            console.error('[PerfectPay Webhook] Invalid token. Expected:', expectedToken, 'Received:', webhookToken);
+            console.error('[PerfectPay Webhook] Invalid token');
             res.status(403).json({ error: 'Forbidden: Invalid webhook token' });
             return;
         }
@@ -133,7 +137,7 @@ const handlePerfectPayWebhook = async (req, res) => {
                     }
                 });
                 userWasCreated = true;
-                console.log(`[PerfectPay Webhook] User created: ${user.email} with password: ${randomPassword}`);
+                console.log(`[PerfectPay Webhook] User created: ${user.email}`);
             }
             userId = user.id;
             // 2. Identificar o plano

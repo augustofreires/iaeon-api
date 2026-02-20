@@ -8,6 +8,7 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const webhook_routes_1 = __importDefault(require("./routes/webhook.routes"));
@@ -25,6 +26,21 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
+// Rate limiting
+const webhookLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 30, // 30 requisições por minuto
+    message: { error: 'Muitas requisições ao webhook. Tente novamente em breve.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+const cotacoesLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 60, // 60 requisições por minuto
+    message: { error: 'Muitas requisições de cotações. Tente novamente em breve.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -33,16 +49,16 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', auth_routes_1.default);
 // Admin routes
 app.use('/api/admin', admin_routes_1.default);
-// Webhook routes (public, no auth)
-app.use('/api/webhooks', webhook_routes_1.default);
+// Webhook routes (public, no auth) - com rate limiting
+app.use('/api/webhooks', webhookLimiter, webhook_routes_1.default);
 // Public routes (no auth)
 app.use('/api', public_routes_1.default);
 // User routes (requires auth)
 app.use('/api/user', user_routes_1.default);
 // Course routes (public + admin)
 app.use('/api', course_routes_1.default);
-// Cotacoes routes (public)
-app.use('/api/cotacoes', cotacoes_routes_1.default);
+// Cotacoes routes (public) - com rate limiting
+app.use('/api/cotacoes', cotacoesLimiter, cotacoes_routes_1.default);
 app.listen(PORT, () => {
     console.log(`[IAEON API] Server running on port ${PORT}`);
     console.log(`[IAEON API] Auth endpoints available at /api/auth/*`);

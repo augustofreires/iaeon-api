@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
 import authRoutes from './routes/auth.routes';
 import adminRoutes from './routes/admin.routes';
 import webhookRoutes from './routes/webhook.routes';
@@ -24,6 +25,23 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Rate limiting
+const webhookLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 30, // 30 requisições por minuto
+    message: { error: 'Muitas requisições ao webhook. Tente novamente em breve.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const cotacoesLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minuto
+    max: 60, // 60 requisições por minuto
+    message: { error: 'Muitas requisições de cotações. Tente novamente em breve.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -35,8 +53,8 @@ app.use('/api/auth', authRoutes);
 // Admin routes
 app.use('/api/admin', adminRoutes);
 
-// Webhook routes (public, no auth)
-app.use('/api/webhooks', webhookRoutes);
+// Webhook routes (public, no auth) - com rate limiting
+app.use('/api/webhooks', webhookLimiter, webhookRoutes);
 
 // Public routes (no auth)
 app.use('/api', publicRoutes);
@@ -47,8 +65,8 @@ app.use('/api/user', userRoutes);
 // Course routes (public + admin)
 app.use('/api', courseRoutes);
 
-// Cotacoes routes (public)
-app.use('/api/cotacoes', cotacoesRoutes);
+// Cotacoes routes (public) - com rate limiting
+app.use('/api/cotacoes', cotacoesLimiter, cotacoesRoutes);
 
 app.listen(PORT, () => {
     console.log(`[IAEON API] Server running on port ${PORT}`);

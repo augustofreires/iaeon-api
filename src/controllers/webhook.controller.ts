@@ -90,8 +90,12 @@ export const handlePerfectPayWebhook = async (req: Request, res: Response): Prom
     try {
         const payload = req.body;
 
-        // Log do payload completo
-        console.log('[PerfectPay Webhook] Received:', JSON.stringify(payload, null, 2));
+        // Log do payload (sem token por segurança)
+        const { token, ...safePayload } = payload;
+        console.log('[PerfectPay Webhook] Received:', JSON.stringify({
+            ...safePayload,
+            customer: { email: safePayload.customer?.email }
+        }, null, 2));
 
         // Validar token de segurança (vem no body como "token")
         const webhookToken = payload.token;
@@ -103,7 +107,7 @@ export const handlePerfectPayWebhook = async (req: Request, res: Response): Prom
         const expectedToken = setting?.value;
 
         if (expectedToken && webhookToken !== expectedToken) {
-            console.error('[PerfectPay Webhook] Invalid token. Expected:', expectedToken, 'Received:', webhookToken);
+            console.error('[PerfectPay Webhook] Invalid token');
             res.status(403).json({ error: 'Forbidden: Invalid webhook token' });
             return;
         }
@@ -153,7 +157,7 @@ export const handlePerfectPayWebhook = async (req: Request, res: Response): Prom
                 });
 
                 userWasCreated = true;
-                console.log(`[PerfectPay Webhook] User created: ${user.email} with password: ${randomPassword}`);
+                console.log(`[PerfectPay Webhook] User created: ${user.email}`);
             }
 
             userId = user.id;

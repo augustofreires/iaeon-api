@@ -26,7 +26,7 @@ export const updateSmtpConfig = async (req: AuthRequest, res: Response): Promise
 
         const config = await emailService.updateSmtpConfig({
             host,
-            port: port ? parseInt(port) : undefined,
+            port: port ? parseInt(port, 10) : undefined,
             user,
             password,
             from_name,

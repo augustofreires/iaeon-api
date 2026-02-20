@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProfile = exports.getDashboard = exports.getUserSubscription = exports.getUserBots = void 0;
 const client_1 = require("@prisma/client");
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma = new client_1.PrismaClient();
 /**
  * Retorna TODOS os bots ACTIVE com campo is_accessible
@@ -318,13 +318,13 @@ const updateProfile = async (req, res) => {
                 res.status(404).json({ error: 'Usuário não encontrado' });
                 return;
             }
-            const isValidPassword = await bcrypt_1.default.compare(current_password, user.password_hash);
+            const isValidPassword = await bcryptjs_1.default.compare(current_password, user.password_hash);
             if (!isValidPassword) {
                 res.status(401).json({ error: 'Senha atual incorreta' });
                 return;
             }
             // Hash nova senha
-            const passwordHash = await bcrypt_1.default.hash(new_password, 12);
+            const passwordHash = await bcryptjs_1.default.hash(new_password, 12);
             updateData.password_hash = passwordHash;
         }
         // Se não há nada para atualizar

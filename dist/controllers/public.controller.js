@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPlatformConfig = exports.getDerivConfig = exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
 const client_1 = require("@prisma/client");
+const json_1 = require("../utils/json");
 const prisma = new client_1.PrismaClient();
 /**
  * Lista planos públicos (ACTIVE)
@@ -49,14 +50,8 @@ const getUsefulLinks = async (req, res) => {
             res.json([]);
             return;
         }
-        try {
-            const links = JSON.parse(setting.value);
-            res.json(links);
-        }
-        catch (parseError) {
-            console.error('Error parsing useful_links JSON:', parseError);
-            res.json([]);
-        }
+        const links = (0, json_1.safeJsonParse)(setting.value, []);
+        res.json(links);
     }
     catch (error) {
         console.error('Error getting useful links:', error);
@@ -76,18 +71,12 @@ const getBanners = async (req, res) => {
             res.json([]);
             return;
         }
-        try {
-            const banners = JSON.parse(setting.value);
-            // Filtrar apenas banners ativos e ordenar
-            const activeBanners = banners
-                .filter((b) => b.active)
-                .sort((a, b) => a.order - b.order);
-            res.json(activeBanners);
-        }
-        catch (parseError) {
-            console.error('Error parsing dashboard_banners JSON:', parseError);
-            res.json([]);
-        }
+        const banners = (0, json_1.safeJsonParse)(setting.value, []);
+        // Filtrar apenas banners ativos e ordenar
+        const activeBanners = banners
+            .filter((b) => b.active)
+            .sort((a, b) => a.order - b.order);
+        res.json(activeBanners);
     }
     catch (error) {
         console.error('Error getting banners:', error);

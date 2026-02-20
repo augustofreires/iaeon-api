@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { safeJsonParse } from '../utils/json';
 
 const prisma = new PrismaClient();
 
@@ -27,18 +28,18 @@ export const getBancaData = async (req: Request, res: Response): Promise<void> =
             where: { key },
         });
 
+        const defaultData: BancaData = {
+            meta_diaria: 5,
+            max_perda: 9,
+            dias: Array(30).fill(null).map((_, i) => ({ dia: i + 1 })),
+        };
+
         if (!setting || !setting.value) {
-            // Retornar dados padrão
-            const defaultData: BancaData = {
-                meta_diaria: 5,
-                max_perda: 9,
-                dias: Array(30).fill(null).map((_, i) => ({ dia: i + 1 })),
-            };
             res.json(defaultData);
             return;
         }
 
-        const data = JSON.parse(setting.value);
+        const data = safeJsonParse<BancaData>(setting.value, defaultData);
         res.json(data);
     } catch (error) {
         console.error('Error getting banca data:', error);

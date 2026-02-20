@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getWebhookLogs = exports.updateBanners = exports.getBannersAdmin = exports.updateUsefulLinks = exports.getUsefulLinksAdmin = exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.setDefaultPlan = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
 const client_1 = require("@prisma/client");
+const json_1 = require("../utils/json");
 const prisma = new client_1.PrismaClient();
 // ============= USUÁRIOS =============
 const listUsers = async (req, res) => {
@@ -705,14 +706,8 @@ const getUsefulLinksAdmin = async (req, res) => {
             res.json([]);
             return;
         }
-        try {
-            const links = JSON.parse(setting.value);
-            res.json(links);
-        }
-        catch (parseError) {
-            console.error('Error parsing useful_links JSON:', parseError);
-            res.json([]);
-        }
+        const links = (0, json_1.safeJsonParse)(setting.value, []);
+        res.json(links);
     }
     catch (error) {
         console.error('Error getting useful links:', error);
@@ -762,14 +757,8 @@ const getBannersAdmin = async (req, res) => {
             res.json([]);
             return;
         }
-        try {
-            const banners = JSON.parse(setting.value);
-            res.json(banners);
-        }
-        catch (parseError) {
-            console.error('Error parsing dashboard_banners JSON:', parseError);
-            res.json([]);
-        }
+        const banners = (0, json_1.safeJsonParse)(setting.value, []);
+        res.json(banners);
     }
     catch (error) {
         console.error('Error getting banners:', error);
