@@ -890,3 +890,29 @@ export const updateBanners = async (req: AuthRequest, res: Response): Promise<vo
         res.status(500).json({ error: 'Erro ao atualizar banners' });
     }
 };
+
+// ============= WEBHOOK LOGS =============
+
+export const getWebhookLogs = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const limit = parseInt((req.query.limit || '50') as string) || 50;
+        const source = req.query.source as string | undefined;
+
+        const where: any = {};
+
+        if (source) {
+            where.source = source;
+        }
+
+        const logs = await prisma.webhookLog.findMany({
+            where,
+            take: limit,
+            orderBy: { created_at: 'desc' }
+        });
+
+        res.json(logs);
+    } catch (error) {
+        console.error('Error fetching webhook logs:', error);
+        res.status(500).json({ error: 'Erro ao buscar logs de webhooks' });
+    }
+};

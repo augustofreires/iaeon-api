@@ -111,6 +111,8 @@ model CourseLesson {
 model WebhookLog {
     id           String   @id @default(uuid())
     source       String   // perfectpay, hotmart, stripe
+    email        String?  // Email do comprador
+    event_type   String?  // Tipo de evento (approved, refunded, chargeback, etc)
     payload      Json
     status       String   @default("received")
     processed_at DateTime?

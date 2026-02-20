@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateBanners = exports.getBannersAdmin = exports.updateUsefulLinks = exports.getUsefulLinksAdmin = exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.setDefaultPlan = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
+exports.getWebhookLogs = exports.updateBanners = exports.getBannersAdmin = exports.updateUsefulLinks = exports.getUsefulLinksAdmin = exports.getMetrics = exports.updateSettings = exports.listSettings = exports.deleteSubscription = exports.updateSubscription = exports.listSubscriptions = exports.deleteBot = exports.updateBot = exports.createBot = exports.listBots = exports.getXmlFiles = exports.setDefaultPlan = exports.removeBotFromPlan = exports.addBotToPlan = exports.deletePlan = exports.updatePlan = exports.createPlan = exports.listPlans = exports.createUserSubscription = exports.deleteUser = exports.updateUserStatus = exports.updateUser = exports.getUserById = exports.listUsers = void 0;
 const client_1 = require("@prisma/client");
 const prisma = new client_1.PrismaClient();
 // ============= USUÁRIOS =============
@@ -813,3 +813,25 @@ const updateBanners = async (req, res) => {
     }
 };
 exports.updateBanners = updateBanners;
+// ============= WEBHOOK LOGS =============
+const getWebhookLogs = async (req, res) => {
+    try {
+        const limit = parseInt((req.query.limit || '50')) || 50;
+        const source = req.query.source;
+        const where = {};
+        if (source) {
+            where.source = source;
+        }
+        const logs = await prisma.webhookLog.findMany({
+            where,
+            take: limit,
+            orderBy: { created_at: 'desc' }
+        });
+        res.json(logs);
+    }
+    catch (error) {
+        console.error('Error fetching webhook logs:', error);
+        res.status(500).json({ error: 'Erro ao buscar logs de webhooks' });
+    }
+};
+exports.getWebhookLogs = getWebhookLogs;

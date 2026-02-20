@@ -81,4 +81,6 @@ const masterOnly = [auth_1.verifyToken, (0, auth_1.requireRole)(['MASTER'])];
 router.get('/smtp', adminOnly, smtpController.getSmtpConfig);
 router.put('/smtp', masterOnly, smtpController.updateSmtpConfig);
 router.post('/smtp/test', masterOnly, smtpController.sendTestEmail);
+// ============= WEBHOOK LOGS =============
+router.get('/webhook-logs', adminOnly, adminController.getWebhookLogs);
 exports.default = router;

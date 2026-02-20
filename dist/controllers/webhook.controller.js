@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.handlePerfectPayWebhook = void 0;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const email_service_1 = require("../services/email.service");
+const welcome_credentials_email_1 = require("../templates/welcome-credentials-email");
 const prisma = new client_1.PrismaClient();
 /**
  * Gera senha aleatória de 8 caracteres
@@ -19,29 +21,32 @@ function generateRandomPassword(length = 8) {
     return password;
 }
 /**
- * Mapeia product_id ou product_name para plan_id
+ * Mapeia product code/name da PerfectPay para plan_id do sistema
+ *
+ * @param productCode - Código do produto da PerfectPay (ex: "PPPB9L9E")
+ * @param productName - Nome do produto da PerfectPay (ex: "Eon Pro")
+ * @returns plan_id ou null se não encontrar mapeamento
  */
-async function getPlanByProduct(productId, productName) {
-    // Tentar buscar mapeamento no Setting
-    let mappingKey = '';
-    let mappingValue = '';
-    if (productId) {
-        mappingKey = `perfectpay_product_${productId}`;
-    }
-    else if (productName) {
-        mappingKey = `perfectpay_product_name_${productName.toLowerCase().replace(/\s+/g, '_')}`;
-    }
-    if (mappingKey) {
-        const setting = await prisma.setting.findUnique({
-            where: { key: mappingKey }
-        });
-        if (setting) {
-            mappingValue = setting.value;
+async function getPlanByProduct(productCode, productName) {
+    // Buscar todos os settings de mapeamento (padrão: plan_{plan.id}_perfectpay_product)
+    const allSettings = await prisma.setting.findMany({
+        where: {
+            key: {
+                startsWith: 'plan_'
+            }
         }
-    }
-    // Se encontrou plan_id no Setting, retornar
-    if (mappingValue) {
-        return mappingValue;
+    });
+    // Procurar setting que tenha o product code ou product name como value
+    const searchValue = productCode || productName;
+    if (searchValue) {
+        const matchingSetting = allSettings.find(s => s.key.endsWith('_perfectpay_product') &&
+            s.value &&
+            s.value.toLowerCase() === searchValue.toLowerCase());
+        if (matchingSetting) {
+            // Extrair plan_id da key: plan_{plan.id}_perfectpay_product
+            const planId = matchingSetting.key.replace('plan_', '').replace('_perfectpay_product', '');
+            return planId;
+        }
     }
     // Fallback: buscar plano pelo nome similar
     if (productName) {
@@ -61,61 +66,86 @@ async function getPlanByProduct(productId, productName) {
 }
 /**
  * Webhook PerfectPay
+ *
+ * Payload real da PerfectPay:
+ * - body.token → Public token pra validação
+ * - body.sale_status_enum_key → Status: "approved", "refunded", "chargeback", "cancelled"
+ * - body.customer.email → Email do comprador
+ * - body.customer.full_name → Nome completo
+ * - body.product.code → Código do produto (ex: "PPPB9L9E")
+ * - body.product.name → Nome do produto (ex: "Eon Pro")
+ * - body.code → Código da transação
+ * - body.sale_amount → Valor da venda
+ * - body.payment_type_enum_key → Tipo de pagamento
+ * - body.date_approved → Data de aprovação
  */
 const handlePerfectPayWebhook = async (req, res) => {
     try {
         const payload = req.body;
         // Log do payload completo
         console.log('[PerfectPay Webhook] Received:', JSON.stringify(payload, null, 2));
-        // Validar token de segurança
-        const webhookToken = req.headers['x-webhook-token'] || req.query.token;
+        // Validar token de segurança (vem no body como "token")
+        const webhookToken = payload.token;
         const setting = await prisma.setting.findUnique({
             where: { key: 'perfectpay_webhook_token' }
         });
         const expectedToken = setting?.value;
         if (expectedToken && webhookToken !== expectedToken) {
-            console.error('[PerfectPay Webhook] Invalid token');
+            console.error('[PerfectPay Webhook] Invalid token. Expected:', expectedToken, 'Received:', webhookToken);
             res.status(403).json({ error: 'Forbidden: Invalid webhook token' });
             return;
         }
-        // Extrair dados importantes
-        const { customer_email, customer_name, product_id, product_name, transaction_status, transaction_id } = payload;
-        if (!customer_email) {
-            res.status(400).json({ error: 'Missing customer_email' });
+        // Extrair dados importantes do payload real
+        const saleStatus = payload.sale_status_enum_key; // "approved", "refunded", "chargeback", "cancelled"
+        const customerEmail = payload.customer?.email;
+        const customerName = payload.customer?.full_name;
+        const productCode = payload.product?.code;
+        const productName = payload.product?.name;
+        const transactionCode = payload.code;
+        const saleAmount = payload.sale_amount;
+        const paymentType = payload.payment_type_enum_key;
+        const dateApproved = payload.date_approved;
+        if (!customerEmail) {
+            console.error('[PerfectPay Webhook] Missing customer email');
+            res.status(400).json({ error: 'Missing customer email' });
             return;
         }
         let userId = null;
         // APROVADO
-        if (transaction_status === 'approved') {
+        if (saleStatus === 'approved') {
             // 1. Verificar/Criar usuário
             let user = await prisma.user.findUnique({
-                where: { email: customer_email.toLowerCase() }
+                where: { email: customerEmail.toLowerCase() }
             });
+            let userWasCreated = false;
+            let randomPassword = '';
             if (!user) {
                 // Criar novo usuário com senha aleatória
-                const randomPassword = generateRandomPassword();
+                randomPassword = generateRandomPassword();
                 const passwordHash = await bcryptjs_1.default.hash(randomPassword, 12);
                 user = await prisma.user.create({
                     data: {
-                        email: customer_email.toLowerCase(),
-                        name: customer_name || customer_email.split('@')[0],
+                        email: customerEmail.toLowerCase(),
+                        name: customerName || customerEmail.split('@')[0],
                         password_hash: passwordHash,
                         role: 'USER',
                         status: 'ACTIVE'
                     }
                 });
+                userWasCreated = true;
                 console.log(`[PerfectPay Webhook] User created: ${user.email} with password: ${randomPassword}`);
-                // TODO: Enviar email com credenciais
             }
             userId = user.id;
             // 2. Identificar o plano
-            const planId = await getPlanByProduct(product_id, product_name);
+            const planId = await getPlanByProduct(productCode, productName);
             if (!planId) {
-                console.error(`[PerfectPay Webhook] Plan not found for product: ${product_id || product_name}`);
+                console.error(`[PerfectPay Webhook] Plan not found for product: ${productCode || productName}`);
                 // Salvar log mesmo sem plano
                 await prisma.webhookLog.create({
                     data: {
                         source: 'perfectpay',
+                        email: customerEmail || 'desconhecido',
+                        event_type: saleStatus || 'unknown',
                         payload,
                         status: 'error_plan_not_found'
                     }
@@ -146,16 +176,31 @@ const handlePerfectPayWebhook = async (req, res) => {
                     started_at: new Date(),
                     expires_at: expiresAt,
                     payment_source: 'PERFECTPAY',
-                    payment_reference: transaction_id || `perfectpay-${Date.now()}`
+                    payment_reference: transactionCode || `perfectpay-${Date.now()}`
                 }
             });
             console.log(`[PerfectPay Webhook] Subscription created: ${subscription.id}`);
-            // 6. Salvar log
+            // 6. Enviar email com credenciais se o usuário foi criado
+            if (userWasCreated && randomPassword) {
+                try {
+                    const htmlContent = (0, welcome_credentials_email_1.getWelcomeCredentialsEmailHtml)(user.name, user.email, randomPassword, plan.name);
+                    await (0, email_service_1.sendEmail)(user.email, 'Bem-vindo à Eon Pro - Suas Credenciais de Acesso', htmlContent);
+                    console.log(`[PerfectPay Webhook] Welcome email sent to: ${user.email}`);
+                }
+                catch (emailError) {
+                    console.error(`[PerfectPay Webhook] Error sending email:`, emailError);
+                    // Não falhar o webhook se o email falhar
+                }
+            }
+            // 7. Salvar log
             await prisma.webhookLog.create({
                 data: {
                     source: 'perfectpay',
+                    email: customerEmail || 'desconhecido',
+                    event_type: saleStatus || 'unknown',
                     payload,
-                    status: 'processed'
+                    status: 'processed',
+                    processed_at: new Date()
                 }
             });
             res.status(200).json({
@@ -166,33 +211,36 @@ const handlePerfectPayWebhook = async (req, res) => {
             });
             return;
         }
-        // REEMBOLSO ou CANCELAMENTO
-        if (transaction_status === 'refunded' || transaction_status === 'cancelled') {
+        // REEMBOLSO, CHARGEBACK ou CANCELAMENTO
+        if (saleStatus === 'refunded' || saleStatus === 'chargeback' || saleStatus === 'cancelled') {
             // Buscar usuário
             const user = await prisma.user.findUnique({
-                where: { email: customer_email.toLowerCase() }
+                where: { email: customerEmail.toLowerCase() }
             });
             if (user) {
                 userId = user.id;
-                // Cancelar subscriptions ativas deste usuário relacionadas ao transaction_id
+                // Cancelar subscriptions ativas deste usuário relacionadas ao transactionCode
                 await prisma.subscription.updateMany({
                     where: {
                         user_id: userId,
-                        payment_reference: transaction_id,
+                        payment_reference: transactionCode,
                         status: 'ACTIVE'
                     },
                     data: {
                         status: 'CANCELLED'
                     }
                 });
-                console.log(`[PerfectPay Webhook] Subscriptions cancelled for user: ${user.email}`);
+                console.log(`[PerfectPay Webhook] Subscriptions cancelled for user: ${user.email} (reason: ${saleStatus})`);
             }
             // Salvar log
             await prisma.webhookLog.create({
                 data: {
                     source: 'perfectpay',
+                    email: customerEmail || 'desconhecido',
+                    event_type: saleStatus || 'unknown',
                     payload,
-                    status: 'processed_cancellation'
+                    status: 'processed_cancellation',
+                    processed_at: new Date()
                 }
             });
             res.status(200).json({
@@ -205,14 +253,16 @@ const handlePerfectPayWebhook = async (req, res) => {
         await prisma.webhookLog.create({
             data: {
                 source: 'perfectpay',
+                email: customerEmail || 'desconhecido',
+                event_type: saleStatus || 'unknown',
                 payload,
-                status: `unhandled_status_${transaction_status}`
+                status: `unhandled_status_${saleStatus}`
             }
         });
         res.status(200).json({
             success: true,
             message: 'Webhook received but not processed',
-            transaction_status
+            sale_status: saleStatus
         });
     }
     catch (error) {
@@ -222,6 +272,8 @@ const handlePerfectPayWebhook = async (req, res) => {
             await prisma.webhookLog.create({
                 data: {
                     source: 'perfectpay',
+                    email: req.body?.customer?.email || 'desconhecido',
+                    event_type: req.body?.sale_status_enum_key || 'unknown',
                     payload: req.body,
                     status: 'error'
                 }
