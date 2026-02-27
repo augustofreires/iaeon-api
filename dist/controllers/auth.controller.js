@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -7,7 +40,7 @@ exports.resetPassword = exports.forgotPassword = exports.verify = exports.logout
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const crypto_1 = __importDefault(require("crypto"));
+const crypto_1 = __importStar(require("crypto"));
 const email_service_1 = require("../services/email.service");
 const welcome_email_1 = require("../templates/welcome-email");
 const reset_password_email_1 = require("../templates/reset-password-email");
@@ -101,9 +134,10 @@ exports.login = login;
  * POST /api/auth/register
  * Cria nova conta e atribui plano padrão automaticamente
  */
+const hashSHA256 = (value) => (0, crypto_1.createHash)('sha256').update(value.trim().toLowerCase()).digest('hex');
 const register = async (req, res) => {
     try {
-        const { email, password, name, language } = req.body;
+        const { email, password, name, language, utm_source, utm_medium, utm_campaign } = req.body;
         // Validações básicas
         if (!email || !password || !name) {
             res.status(400).json({ error: 'Email, senha e nome são obrigatórios' });
@@ -131,7 +165,10 @@ const register = async (req, res) => {
                 name,
                 language: language || 'pt-br',
                 role: 'USER',
-                status: 'ACTIVE'
+                status: 'ACTIVE',
+                utm_source: utm_source || null,
+                utm_medium: utm_medium || null,
+                utm_campaign: utm_campaign || null,
             },
             select: {
                 id: true,
@@ -177,6 +214,44 @@ const register = async (req, res) => {
             (0, email_service_1.sendEmail)(user.email, 'Bem-vindo à Eon Pro!', (0, welcome_email_1.getWelcomeEmailHtml)(user.name, subscriptionInfo.plan_name)).catch(error => {
                 console.error('[AUTH] Failed to send welcome email:', error);
             });
+        }
+        // Enviar evento CompleteRegistration para Meta Conversions API (não bloqueia o registro)
+        try {
+            const [pixelIdSetting, pixelTokenSetting] = await Promise.all([
+                prisma.setting.findUnique({ where: { key: 'meta_pixel_id' } }),
+                prisma.setting.findUnique({ where: { key: 'meta_pixel_token' } }),
+            ]);
+            const pixel_id = pixelIdSetting?.value;
+            const access_token = pixelTokenSetting?.value;
+            if (pixel_id && access_token) {
+                fetch(`https://graph.facebook.com/v18.0/${pixel_id}/events?access_token=${access_token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: [{
+                                event_name: 'CompleteRegistration',
+                                event_time: Math.floor(Date.now() / 1000),
+                                action_source: 'website',
+                                user_data: {
+                                    em: [hashSHA256(user.email)],
+                                },
+                            }],
+                    }),
+                }).then(async (metaRes) => {
+                    if (!metaRes.ok) {
+                        const errBody = await metaRes.text();
+                        console.error('[META] Conversions API error:', metaRes.status, errBody);
+                    }
+                    else {
+                        console.log('[META] CompleteRegistration sent for:', user.email);
+                    }
+                }).catch((err) => {
+                    console.error('[META] Conversions API fetch failed:', err);
+                });
+            }
+        }
+        catch (metaError) {
+            console.error('[META] Failed to send Conversions API event:', metaError);
         }
         res.status(201).json({
             message: 'Conta criada com sucesso',

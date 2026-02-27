@@ -29,6 +29,8 @@ async function main() {
         { key: 'telegram_url', value: '' },
         { key: 'whatsapp_url', value: '' },
         { key: 'support_url', value: '' },
+        { key: 'meta_pixel_id', value: '' },
+        { key: 'meta_pixel_token', value: '' },
     ];
 
     for (const setting of settings) {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPlatformConfig = exports.getDerivConfig = exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
+exports.getPlatformConfig = exports.getPixelSettings = exports.getDerivConfig = exports.getBanners = exports.getUsefulLinks = exports.listPublicPlans = void 0;
 const client_1 = require("@prisma/client");
 const json_1 = require("../utils/json");
 const prisma = new client_1.PrismaClient();
@@ -114,6 +114,24 @@ const getDerivConfig = async (req, res) => {
     }
 };
 exports.getDerivConfig = getDerivConfig;
+/**
+ * Retorna o Meta Pixel ID para o frontend (NÃO expõe o token de conversões)
+ */
+const getPixelSettings = async (req, res) => {
+    try {
+        const pixelIdSetting = await prisma.setting.findUnique({
+            where: { key: 'meta_pixel_id' }
+        });
+        res.json({
+            pixel_id: pixelIdSetting?.value || null
+        });
+    }
+    catch (error) {
+        console.error('Error getting pixel settings:', error);
+        res.json({ pixel_id: null });
+    }
+};
+exports.getPixelSettings = getPixelSettings;
 /**
  * Retorna configurações de branding da plataforma (logo, nome, subtítulo, favicon)
  */

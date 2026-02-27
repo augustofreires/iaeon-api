@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import crypto, { createHash } from 'crypto';
 import { AuthRequest } from '../middleware/auth';
 import { sendEmail } from '../services/email.service';
 import { getWelcomeEmailHtml } from '../templates/welcome-email';
@@ -118,9 +118,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
  * POST /api/auth/register
  * Cria nova conta e atribui plano padrão automaticamente
  */
+const hashSHA256 = (value: string) =>
+    createHash('sha256').update(value.trim().toLowerCase()).digest('hex');
+
 export const register = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { email, password, name, language } = req.body;
+        const { email, password, name, language, utm_source, utm_medium, utm_campaign } = req.body;
 
         // Validações básicas
         if (!email || !password || !name) {
@@ -154,7 +157,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
                 name,
                 language: language || 'pt-br',
                 role: 'USER',
-                status: 'ACTIVE'
+                status: 'ACTIVE',
+                utm_source: utm_source || null,
+                utm_medium: utm_medium || null,
+                utm_campaign: utm_campaign || null,
             },
             select: {
                 id: true,
@@ -210,6 +216,44 @@ export const register = async (req: Request, res: Response): Promise<void> => {
             ).catch(error => {
                 console.error('[AUTH] Failed to send welcome email:', error);
             });
+        }
+
+        // Enviar evento CompleteRegistration para Meta Conversions API (não bloqueia o registro)
+        try {
+            const [pixelIdSetting, pixelTokenSetting] = await Promise.all([
+                prisma.setting.findUnique({ where: { key: 'meta_pixel_id' } }),
+                prisma.setting.findUnique({ where: { key: 'meta_pixel_token' } }),
+            ]);
+            const pixel_id = pixelIdSetting?.value;
+            const access_token = pixelTokenSetting?.value;
+
+            if (pixel_id && access_token) {
+                fetch(`https://graph.facebook.com/v18.0/${pixel_id}/events?access_token=${access_token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: [{
+                            event_name: 'CompleteRegistration',
+                            event_time: Math.floor(Date.now() / 1000),
+                            action_source: 'website',
+                            user_data: {
+                                em: [hashSHA256(user.email)],
+                            },
+                        }],
+                    }),
+                }).then(async (metaRes) => {
+                    if (!metaRes.ok) {
+                        const errBody = await metaRes.text();
+                        console.error('[META] Conversions API error:', metaRes.status, errBody);
+                    } else {
+                        console.log('[META] CompleteRegistration sent for:', user.email);
+                    }
+                }).catch((err) => {
+                    console.error('[META] Conversions API fetch failed:', err);
+                });
+            }
+        } catch (metaError) {
+            console.error('[META] Failed to send Conversions API event:', metaError);
         }
 
         res.status(201).json({

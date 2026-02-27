@@ -46,4 +46,6 @@ router.get('/banners', publicController.getBanners);
 router.get('/config/deriv', publicController.getDerivConfig);
 // Rota pública para config de branding da plataforma (sem autenticação)
 router.get('/config/platform', publicController.getPlatformConfig);
+// Rota pública para retornar pixel ID do Meta (sem autenticação)
+router.get('/settings/pixel', publicController.getPixelSettings);
 exports.default = router;

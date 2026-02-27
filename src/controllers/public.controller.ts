@@ -119,6 +119,24 @@ export const getDerivConfig = async (req: Request, res: Response): Promise<void>
 };
 
 /**
+ * Retorna o Meta Pixel ID para o frontend (NÃO expõe o token de conversões)
+ */
+export const getPixelSettings = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const pixelIdSetting = await prisma.setting.findUnique({
+            where: { key: 'meta_pixel_id' }
+        });
+
+        res.json({
+            pixel_id: pixelIdSetting?.value || null
+        });
+    } catch (error) {
+        console.error('Error getting pixel settings:', error);
+        res.json({ pixel_id: null });
+    }
+};
+
+/**
  * Retorna configurações de branding da plataforma (logo, nome, subtítulo, favicon)
  */
 export const getPlatformConfig = async (req: Request, res: Response): Promise<void> => {
